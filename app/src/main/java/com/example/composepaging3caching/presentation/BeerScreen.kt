@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,11 +21,11 @@ import com.example.composepaging3caching.domain.Beer
 
 @Composable
 fun BeerScreen(
-    beers: List<Beer>
+    beers: LazyPagingItems<Beer>
 ) {
     val context = LocalContext.current
 
-    /*LaunchedEffect(beers.loadState) {
+    LaunchedEffect(beers.loadState) {
         if (beers.loadState.refresh is LoadState.Error) {
             Toast.makeText(
                 context,
@@ -34,10 +33,10 @@ fun BeerScreen(
                 Toast.LENGTH_SHORT
             ).show()
         }
-    }*/
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (false) {
+        if (beers.loadState.refresh is LoadState.Loading) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -54,7 +53,7 @@ fun BeerScreen(
                     }
                 }
                 item {
-                    if (false) {
+                    if (beers.loadState.append is LoadState.Loading) {
                         CircularProgressIndicator()
                     }
                 }

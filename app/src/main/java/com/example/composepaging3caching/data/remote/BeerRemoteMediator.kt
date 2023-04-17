@@ -55,7 +55,7 @@ class BeerRemoteMediator(
     }
 
     private suspend fun getBeers(loadType: LoadType, page: Int, pageSize: Int): List<BeerDto> {
-        delay(5000)
+        delay(2000)
         val beers = beerApi.getBeers(page = page, perPage = pageSize)
 
         beerDatabase.withTransaction {
