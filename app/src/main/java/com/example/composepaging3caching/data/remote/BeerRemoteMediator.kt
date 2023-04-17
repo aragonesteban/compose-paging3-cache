@@ -8,43 +8,35 @@ import androidx.room.withTransaction
 import com.example.composepaging3caching.data.local.BeerDatabase
 import com.example.composepaging3caching.data.local.BeerEntity
 import com.example.composepaging3caching.data.mappers.toBeerEntity
+import kotlinx.coroutines.delay
 import retrofit2.HttpException
 import java.io.IOException
 
+private const val FIRST_PAGE = 1
+
 @OptIn(ExperimentalPagingApi::class)
 class BeerRemoteMediator(
-    private val beerDb: BeerDatabase,
+    private val beerDatabase: BeerDatabase,
     private val beerApi: BeerApi
-): RemoteMediator<Int, BeerEntity>() {
+) : RemoteMediator<Int, BeerEntity>() {
 
     override suspend fun load(
         loadType: LoadType,
         state: PagingState<Int, BeerEntity>
     ): MediatorResult {
         return try {
-            val loadKey = when(loadType) {
-                LoadType.REFRESH -> 1
+            val page = when (loadType) {
+                LoadType.REFRESH -> FIRST_PAGE
                 LoadType.PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)
-                LoadType.APPEND -> {
-                    val lastItem = state.lastItemOrNull()
-                    if (lastItem == null) {
-                        1
-                    } else {
-                        (lastItem.id / state.config.pageSize) + 1
-                    }
-                }
+                LoadType.APPEND -> getPage(state)
             }
-            val beers = beerApi.getBeers(page = loadKey, perPage = state.config.pageSize)
 
-            beerDb.withTransaction {
-                if (loadType == LoadType.REFRESH) {
-                    beerDb.beerDao.clearAll()
-                }
-                val beerEntities = beers.map { it.toBeerEntity() }
-                beerDb.beerDao.upsertAll(beerEntities)
-            }
             MediatorResult.Success(
-                endOfPaginationReached = beers.isEmpty()
+                endOfPaginationReached = getBeers(
+                    loadType = loadType,
+                    page = page,
+                    pageSize = state.config.pageSize
+                ).isEmpty()
             )
         } catch (e: IOException) {
             MediatorResult.Error(e)
@@ -53,4 +45,27 @@ class BeerRemoteMediator(
         }
     }
 
+    private fun getPage(state: PagingState<Int, BeerEntity>): Int {
+        val lastItem = state.lastItemOrNull()
+        return if (lastItem == null) {
+            FIRST_PAGE
+        } else {
+            (lastItem.id / state.config.pageSize) + FIRST_PAGE
+        }
+    }
+
+    private suspend fun getBeers(loadType: LoadType, page: Int, pageSize: Int): List<BeerDto> {
+        delay(5000)
+        val beers = beerApi.getBeers(page = page, perPage = pageSize)
+
+        beerDatabase.withTransaction {
+            if (loadType == LoadType.REFRESH) {
+                beerDatabase.beerDao.clearAll()
+            }
+            val beerEntities = beers.map { it.toBeerEntity() }
+            beerDatabase.beerDao.upsertAll(beerEntities)
+        }
+
+        return beers
+    }
 }
